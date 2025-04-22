@@ -1,0 +1,7 @@
+# Ignore Parquet files
+*.parquet
+
+# Optional: other files you want to ignore
+__pycache__/
+*.pyc
+.env
