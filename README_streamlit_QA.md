@@ -11,7 +11,6 @@ python3 -m venv venv
 source venv/bin/activate
 pip install numpy pandas streamlit Ipython google-cloud-aiplatform pymupdf rich streamlit 
 
-
 ```
 
 2. **Authenticate with Google Cloud (Colab/Notebook)**:
@@ -32,11 +31,18 @@ gcloud config set project salesforce-assistant-457220
 4. **Make sure `text_metadata_df`, `image_metadata_df`, and the Gemini model are loaded**  
 The app assumes they're globally available and passed into the function. You may need to adapt the loading.
 
+5. ##use ngrok to share the demo
+```bash
+brew install ngrok 
+streamlit run streamlit_app.py
+ngrok http 8501
+```
+
+
 ## 🚀 Run the App
 ```bash
 streamlit run streamlit_app.py
 ```
-
 Then open `http://localhost:8501` in your browser.
 
 ## 📁 Structure
@@ -44,8 +50,13 @@ Then open `http://localhost:8501` in your browser.
 - `backend_functions.py`: All your logic (copied from the notebook)
 
 
-go to https://dashboard.ngrok.com/get-started/your-authtokenhttps://dashboard.ngrok.com/get-started/your-authtoken to get the authtoken then do 
 
-and run 
+## ⚠️ Vertex AI SDK (Deprecated Notice)
+This app uses the legacy import path:
+```python
+from vertexai.preview.generative_models import GenerativeModel
+```
+However, as of April 2025, this SDK path has been deprecated or removed from some environments (especially local Python 3.13 environments).
+
 
 
