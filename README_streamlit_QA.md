@@ -37,6 +37,7 @@ brew install ngrok
 streamlit run streamlit_app.py
 ngrok http 8501
 ```
+ http://127.0.0.1:4040  
 
 
 ## 🚀 Run the App
