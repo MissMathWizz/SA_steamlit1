@@ -30,7 +30,7 @@ gcloud config set project salesforce-assistant-457220
 4. **Make sure `text_metadata_df`, `image_metadata_df`, and the Gemini model are loaded**  
 The app assumes they're globally available and passed into the function. You may need to adapt the loading.
 
-5. ##use ngrok to share the demo
+5. **use ngrok to share the demo**
 ```bash
 brew install ngrok 
 streamlit run streamlit_app.py
