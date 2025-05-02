@@ -11,7 +11,7 @@ image_metadata_df = pd.read_parquet("final_merge_image_data.parquet")
 
 
 st.set_page_config(page_title="Gemini QA Comparison", layout="wide")
-st.title("🔍 MRAG System – Gemini Model Comparison (1.5 Flash / 1.5 Pro / 2.0 Flash)")
+st.title("🔍 Salesforce Earnings Call MRAG System – Gemini Model Comparison (1.5 Flash / 1.5 Pro / 2.0 Flash)")
 
 # Select models for side-by-side comparison
 col1, col2 = st.columns(2)
