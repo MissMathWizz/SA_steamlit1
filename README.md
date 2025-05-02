@@ -48,8 +48,16 @@ Then open `http://localhost:8501` in your browser.
 ## 📁 Structure
 - `streamlit_app.py`: Main interface
 - `backend_functions.py`: All your logic (copied from the notebook)
+- `streamlit_app_comparison.py`: Enhanced version with model comparison capabilities and hard-coded answers for specific queries
+- `backend_functions_with_dynamic_metadata.py`: Upgraded backend with dynamic metadata handling and advanced data analysis features
 
-
+## 🔄 Enhanced Features
+The upgraded versions (`streamlit_app_comparison.py` and `backend_functions_with_dynamic_metadata.py`) include:
+- Side-by-side model comparison (Gemini 1.5 Flash vs 1.5 Pro vs 2.0 Flash)
+- Dynamic metadata handling for better context awareness
+- Pre-configured answers for common queries
+- Advanced data analysis capabilities
+- Improved error handling and response formatting
 
 ## ⚠️ Vertex AI SDK (Deprecated Notice)
 This app uses the legacy import path:
