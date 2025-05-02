@@ -11,6 +11,7 @@ import fitz
 import numpy as np
 import pandas as pd
 import requests
+import streamlit    
 from pathlib import Path
 from vertexai.generative_models import (
     GenerationConfig,
@@ -24,24 +25,132 @@ from vertexai.vision_models import MultiModalEmbeddingModel
 
 # function to set embeddings as global variable
 
-def handle_system_question(query: str, system_metadata: Dict[str, Any]) -> str:
-    q = query.lower()
+# multimodal_model_2_0_flash = GenerativeModel(
+#     "gemini-2.0-flash-001"
+# ) # Gemini latest Gemini 2.0 Flash Model
 
-    if "how many" in q and "earnings call documents" in q:
-        return f"There are currently {system_metadata['num_pdfs']} earnings call documents indexed."
 
-    if "how many images" in q:
-        return f"The system contains {system_metadata['total_images']} images extracted from the PDFs."
+# multimodal_model_2_0_flash = GenerativeModel(
+#     "gemini-2.0-flash-001"
+# ) # Gemini latest Gemini 2.0 Flash Model
 
-    if "how many text chunks" in q:
-        return f"There are {system_metadata['total_text_chunks']} text chunks indexed."
+# multimodal_model_15 = GenerativeModel(
+#     "gemini-1.5-pro-002"
+# )  # works with text, code, images, video(with or without audio) and audio(mp3) with 1M input context - complex reasoning
 
-    if "most recent" in q:
-        return f"The most recent indexed file is: {system_metadata['most_recent_file']}"
-
-    return None  # fallback: let LLM handle it
 
 # Load text embedding model from pre-trained source
+
+# Load final merged metadata files
+text_metadata_df = pd.read_parquet("final_merge_text_data.parquet")
+image_metadata_df = pd.read_parquet("final_merge_image_data.parquet")
+
+# Replace any extra spaces around dashes to standardize '08 - 30 - 2023' → '08-30-2023'
+# Clean up the spaces around dashes and parse known formats
+def parse_and_standardize(date_str):
+    try:
+        date_str_clean = date_str.strip().replace(" - ", "-")
+        # Try format '%B %d, %Y' first
+        parsed_date = pd.to_datetime(date_str_clean, format='%B %d, %Y')
+    except:
+        try:
+            # Then try cleaned '%m-%d-%Y'
+            parsed_date = pd.to_datetime(date_str_clean, format='%m-%d-%Y')
+        except:
+            return pd.NaT  # If both fail
+    return parsed_date.strftime('%Y-%m-%d')
+
+# Apply the function to your DataFrame
+text_metadata_df["date"] = text_metadata_df["date"].apply(parse_and_standardize)
+text_metadata_df["date"] = pd.to_datetime(text_metadata_df["date"])
+
+file_dates_df = text_metadata_df.groupby("file_name")["date"].max().reset_index()
+
+# Find the most recent file based on date
+most_recent_row = file_dates_df.sort_values("date", ascending=False).iloc[0]
+most_recent_file = most_recent_row["file_name"]
+most_recent_date = most_recent_row["date"]
+# Get the most recent title from text_metadata_df
+most_recent_title = text_metadata_df[text_metadata_df["file_name"] == most_recent_file]["title"].dropna().iloc[0]
+# Build index dataframe from text metadata
+index_df = pd.DataFrame({
+    "file_name": text_metadata_df["file_name"].unique()
+})
+
+# Count text chunks and image chunks per file
+index_df["num_text_chunks"] = index_df["file_name"].apply(
+    lambda f: text_metadata_df[text_metadata_df["file_name"] == f].shape[0]
+)
+
+index_df["num_images"] = index_df["file_name"].apply(
+    lambda f: image_metadata_df[image_metadata_df["file_name"] == f].shape[0]
+)
+
+# Create dynamic system metadata dictionary
+system_metadata = {
+    "num_pdfs": index_df.shape[0],
+    "total_text_chunks": text_metadata_df.shape[0],
+    "total_images": image_metadata_df.shape[0],
+    "most_recent_file": most_recent_file,
+    "most_recent_title": most_recent_title,
+
+    "most_recent_date": most_recent_date.strftime("%Y-%m-%d") if pd.notnull(most_recent_date) else "N/A"
+}
+
+# Handler function for system-level queries
+def handle_system_question(query: str) -> Optional[str]:
+    questions = [q.strip() for q in query.strip().split("\n") if q.strip()]
+    responses = []
+
+    for q in questions:
+        if "how many pages" in q.lower() and "most recent" in q.lower():
+            recent_file = system_metadata['most_recent_file']
+            recent_title = system_metadata['most_recent_title']
+            num_pages_real = text_metadata_df[text_metadata_df["file_name"] == recent_file]["page_num"].max()
+
+            # Try to find mentioned page count in the text (optional, if stored)
+            mentioned_page_counts = text_metadata_df[
+                (text_metadata_df["file_name"] == recent_file) & 
+                (text_metadata_df["chunk_text"].str.contains("page", case=False, na=False))
+            ]["chunk_text"].tolist()
+
+            page_hint = "Not clearly mentioned in the text."
+            for chunk in mentioned_page_counts:
+                if "page" in chunk.lower() and any(char.isdigit() for char in chunk):
+                    page_hint = chunk.strip()
+                    break
+
+            responses.append(f"""**Q:** {q}  
+**A:** The most recent file, **{recent_file}**, titled **"{recent_title}"**, hints at:  
+> _{page_hint}_  
+Actual physical page count: **{num_pages_real} pages**.\n""")
+
+        elif "how many" in q.lower() and "earnings call documents" in q.lower():
+            responses.append(f"""**Q:** {q}  
+**A:** There are currently **{system_metadata['num_pdfs']}** earnings call documents indexed.\n""")
+
+        elif "most recent earnings call" in q.lower() in q.lower():
+            recent_title = system_metadata['most_recent_title']
+            recent_date = system_metadata['most_recent_date']
+            responses.append(f"""**Q:** {q}  
+**A:** The most recent earnings call was **{recent_date}**, from the document titled **"{recent_title}"**.\n""")
+
+    if responses:
+        formatted_response = "### 🔍 System Metadata Summary\n\n---\n\n"
+        for res in responses:
+            formatted_response += res.strip() + "\n\n---\n\n"
+        formatted_response += (
+            "**Source:**  \n"
+            "This information is retrieved from the system’s dynamic metadata, "
+            "based on real-time indexing of earnings call PDFs and associated content."
+    )
+    
+    # ✅ Return the markdown string ONLY
+        return formatted_response
+    else:
+        return None  # fallback if no matches
+
+
 text_embedding_model = TextEmbeddingModel.from_pretrained("text-embedding-005")
 
 # Load multimodal embedding model from pre-trained source
@@ -591,6 +700,17 @@ def get_answer_from_qa_system(
     Returns:
         Union[str, None]: The generated answer or None if an error occurs.
     """
+     # ✅ Check for system-level metadata question first
+    system_response = handle_system_question(query)
+    if system_response:
+        return (
+            system_response,  # Markdown string from metadata
+            {},  # No text chunks needed
+            {}   # No image chunks needed
+        )
+
+    
+
     # Build Gemini content
     if instruction is None:  # Use default instruction if not provided
         instruction = """Task: Answer the following questions in detail, providing clear reasoning and evidence from the images and text in bullet points.
@@ -671,12 +791,16 @@ def get_answer_from_qa_system(
         safety_settings=safety_settings,
         generation_config=generation_config,
     )
+    system_response = handle_system_question(query)
 
+   
     return (
-        response,
+        response,  # Gemini or normal RAG response
         matching_results_chunks_data,
         matching_results_image_fromdescription_data,
     )
+
+
 
 def upload_to_gcs(local_path, bucket="ifad-lanzi-mrag-food", folder="parquet"):
     storage_client = storage.Client()

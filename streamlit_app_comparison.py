@@ -2,11 +2,13 @@
 import streamlit as st
 import pandas as pd
 from vertexai.generative_models import GenerativeModel
-from backend_functions import get_answer_from_qa_system
+from backend_functions_with_dynamic_metadata import get_answer_from_qa_system
 
 # Load metadata files
 text_metadata_df = pd.read_parquet("final_merge_text_data.parquet")
 image_metadata_df = pd.read_parquet("final_merge_image_data.parquet")
+
+
 
 st.set_page_config(page_title="Gemini QA Comparison", layout="wide")
 st.title("🔍 MRAG System – Gemini Model Comparison (1.5 Flash / 1.5 Pro / 2.0 Flash)")
